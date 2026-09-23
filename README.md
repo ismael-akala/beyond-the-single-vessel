@@ -34,6 +34,6 @@ source("scripts/03_meta_analysis_pipeline.R")
 ## Citation & License
 If you utilize this pipeline or dataset, please cite the associated manuscript and repository.
 
-Zenodo Archive DOI: [Pending Release]
+Zenodo Archive DOI: https://doi.org/10.5281/zenodo.22923693
 
 License: This work is licensed under a Creative Commons Attribution 4.0 International License (CC BY 4.0).
