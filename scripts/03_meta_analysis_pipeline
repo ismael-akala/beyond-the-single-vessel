@@ -1,0 +1,65 @@
+# 03_meta_analysis_pipeline.R
+# Executing Phase 2 & 3: Statistical Synthesis and Meta-Panel Visualization
+
+library(tidyverse)
+
+message("Executing multi-platform microbial meta-analysis...")
+
+# 1. Load the standardized datasets from Phase 1
+mbra <- read.csv("raw_data/mbra_harmonized.csv")
+shime <- read.csv("raw_data/shime_harmonized.csv")
+
+# 2. Bind the data tables into a singular Master Data Frame
+master_meta <- rbind(mbra, shime)
+
+# 3. Calculate Shannon Diversity (H') across the relative abundance matrix
+# Because we are using core phyla abundance columns, we can compute 
+# community entropy using standard mathematical definitions
+phyla_cols <- c("Bacteroidetes", "Firmicutes", "Actinobacteria", "Proteobacteria")
+master_meta$Shannon_H <- apply(master_meta[, phyla_cols], 1, function(x) {
+  # Normalize to ensure row sums equal 1 for absolute precision
+  p <- x / sum(x)
+  p <- p[p > 0] # Remove zeros to avoid log(0) errors
+  return(-sum(p * log(p)))
+})
+
+# 4. Save the combined statistical matrix into the outputs folder
+write.csv(master_meta, "outputs/master_meta_analysis_metrics.csv", row.names = FALSE)
+message("Calculated Shannon Entropy. Metrics exported to outputs/ folder.")
+
+# 5. Refined Non-Parametric Evaluation for Journal Robustness
+message("\n--- REFINED JOURNAL STATISTICAL EVALUATION ---")
+
+# Filter data to analyze ONLY the stabilized ex vivo vessels
+stabilized_only <- master_meta %>% filter(Timepoint == "Ex_Vivo_Stabilized")
+
+# Run a Wilcoxon Rank-Sum Test comparing the two platforms at stabilization
+platform_comparison <- wilcox.test(Shannon_H ~ Platform_Type, data = stabilized_only, exact = FALSE)
+print(platform_comparison)
+
+
+# 6. Generate a Publication-Ready Multi-Panel Boxplot (Phase 3)
+meta_plot <- ggplot(master_meta, aes(x = Timepoint, y = Shannon_H, fill = Timepoint)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7, width = 0.5) +
+  geom_jitter(width = 0.15, size = 2, shape = 21, color = "black", alpha = 0.8) +
+  facet_wrap(~Platform_Type) +
+  scale_fill_manual(values = c("In_Vivo_Baseline" = "#2ecc71", "Ex_Vivo_Stabilized" = "#e74c3c")) +
+  labs(
+    title = "Comparative Alpha Diversity Decay Across Ex Vivo Platforms",
+    subtitle = "Meta-Analytic Evaluation: Mini-Chemostat Arrays vs. Multi-Stage SHIME Systems",
+    x = "Experimental Evaluation Window",
+    y = "Community Shannon Entropy (H')",
+    caption = "Data Source: Unified Metagenomic Synthesis Archive (2026)"
+  ) +
+  theme_bw(base_size = 13) +
+  theme(
+    legend.position = "none",
+    strip.background = element_rect(fill = "#f8f9fa", color = "black"),
+    strip.text = element_text(face = "bold", color = "#2c3e50"),
+    plot.title = element_text(face = "bold", size = 14),
+    panel.grid.minor = element_blank()
+  )
+
+# 7. Export the high-resolution panel to your outputs folder
+ggsave("outputs/Figure1_Meta_Diversity_Panel.png", plot = meta_plot, width = 8.5, height = 5, dpi = 300)
+message("\nSuccess! High-resolution Figure1_Meta_Diversity_Panel.png saved to outputs/ folder.")
